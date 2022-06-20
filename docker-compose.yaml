@@ -1,0 +1,190 @@
+services:
+
+  portainer:
+    container_name: portainer
+    hostname: portainer
+    image: ${PORTAINER_IMAGE} # https://hub.docker.com/r/portainer/portainer-ce
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${CONFIG_DIR}/portainer:/data
+    networks:
+      - ${NETWORK}
+    ports:
+      - 9000:9000
+
+  organizr:
+    container_name: organizr
+    hostname: organizr
+    image: ${ORGANIZR_IMAGE} # https://hub.docker.com/r/organizr/organizr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - fpm=false
+      - branch=v2-master
+    volumes:
+      - ${CONFIG_DIR}/organizr:/config
+    networks:
+      - ${NETWORK}
+    ports:
+      - 80:80
+    depends_on:
+      - emby
+      - sonarr
+      - radarr
+      - deluge
+      - prowlarr
+
+  emby:
+    container_name: emby
+    hostname: emby
+    image: ${EMBY_IMAGE} # https://hub.docker.com/r/linuxserver/emby
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+    volumes:
+      - ${CONFIG_DIR}/emby:/config
+      - ${TV_DIR}:/data/tvshows
+      - ${MOVIES_DIR}:/data/movies
+      - /opt/vc/lib:/opt/vc/lib
+    networks:
+      - ${NETWORK}
+    ports:
+      - 8096:8096
+      - 8920:8920
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/vchiq:/dev/vchiq
+      - /dev/video10:/dev/video10
+      - /dev/video11:/dev/video11
+      - /dev/video12:/dev/video12
+
+  sonarr:
+    container_name: sonarr
+    hostname: sonarr
+    image: ${SONARR_IMAGE} # https://hub.docker.com/r/linuxserver/sonarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+      - UMASK=${UMASK}
+    volumes:
+      - ${CONFIG_DIR}/sonarr:/config
+      - ${MEDIA_DIR}:/storage
+    networks:
+      - ${NETWORK}
+    ports:
+      - 8989:8989
+    depends_on:
+      - prowlarr
+      - deluge
+
+  radarr:
+    container_name: radarr
+    hostname: radarr
+    image: ${RADARR_IMAGE} # https://hub.docker.com/r/linuxserver/radarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+      - UMASK=${UMASK}
+    volumes:
+      - ${CONFIG_DIR}/radarr:/config
+      - ${MEDIA_DIR}:/storage
+    networks:
+      - ${NETWORK}
+    ports:
+      - 7878:7878
+    depends_on:
+      - prowlarr
+      - deluge
+
+  flaresolverr:
+    image: ${FLARESOLVERR_IMAGE} # https://hub.docker.com/r/flaresolverr/flaresolverr
+    container_name: flaresolverr
+    hostname: flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=${TZ}
+    networks:
+      - ${NETWORK}
+    ports:
+      - 8191:8191
+
+  prowlarr:
+    container_name: prowlarr
+    hostname: prowlarr
+    image: ${PROWLARR_IMAGE} # https://hub.docker.com/r/linuxserver/prowlarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+    volumes:
+      - ${CONFIG_DIR}/prowlarr:/config
+    networks:
+      - ${NETWORK}
+    ports:
+      - 9696:9696
+    depends_on:
+      - flaresolverr
+
+  bazarr:
+    container_name: bazarr
+    hostname: bazarr
+    image: ${BAZARR_IMAGE} # https://hub.docker.com/r/linuxserver/bazarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+      - UMASK=${UMASK}
+    volumes:
+      - ${CONFIG_DIR}/bazarr:/config
+      - ${MEDIA_DIR}:/storage
+    networks:
+      - ${NETWORK}
+    ports:
+      - 6767:6767
+    depends_on:
+      - sonarr
+      - radarr
+
+  qbittorrent:
+    container_name: qbittorrent
+    hostname: qbittorrent
+    image: ${QBITTORRENT_IMAGE} # https://hub.docker.com/r/linuxserver/deluge
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TZ}
+      - WEBUI_PORT=8080
+      - DOCKER_MODS=arafatamim/linuxserver-io-mod-vuetorrent
+    volumes:
+      - ${CONFIG_DIR}/qbittorrent:/config
+      - ${DOWNLOADS_DIR}:/storage/downloads
+    networks:
+      - ${NETWORK}
+    ports:
+      - 8080:8080
+      - 6881:6881
+      - 6881:6881/udp
+
+  filebrowser:
+    container_name: filebrowser
+    hostname: filebrowser
+    image: ${FILEBROWSER_IMAGE} # https://hub.docker.com/r/linuxserver/doublecommander
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+    volumes:
+      - ${CONFIG_DIR}/filebrowser/filebrowser.db:/database/filebrowser.db
+      - ${CONFIG_DIR}/filebrowser/settings.json:/config/settings.json
+      - ${MEDIA_DIR}:/srv
+    networks:
+      - ${NETWORK}
+    ports:
+      - 3000:80
+
+networks:
+  local-network:
